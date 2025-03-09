@@ -31,7 +31,7 @@ class AuthProvider with ChangeNotifier {
         _currentUser = user;
       }
     } catch (e) {
-      print('Auth initialization error: $e');
+      // print('Auth initialization error: $e');
     }
 
     _isInitializing = false;
@@ -58,7 +58,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      print('Login error in provider: $e');
+      // print('Login error in provider: $e');
       return false;
     }
   }
@@ -84,7 +84,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      print('Signup error in provider: $e');
+      // print('Signup error in provider: $e');
       return false;
     }
   }
@@ -102,7 +102,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      print('Logout error: $e');
+      // print('Logout error: $e');
     }
   }
 
@@ -122,7 +122,7 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Refresh user data error: $e');
+      // print('Refresh user data error: $e');
     }
   }
 }

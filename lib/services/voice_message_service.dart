@@ -40,7 +40,7 @@ class VoiceMessageService {
 
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      print('Error uploading voice message: $e');
+      // print('Error uploading voice message: $e');
       return '';
     }
   }

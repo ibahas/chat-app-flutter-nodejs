@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:chat_app/core/var.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
@@ -19,13 +20,10 @@ class WebSocketService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    final token = await getAuthToken();
-    print("WebSocketService init, found token: $token");
-
     _socketOptions = {
       'transports': ['websocket'],
       'autoConnect': true,
-      'auth': {'token': token}
+      'auth': {'token': varToken}
     };
 
     _socket = io.io(_serverUrl, _socketOptions);
@@ -34,23 +32,23 @@ class WebSocketService {
     _isInitialized = true;
   }
 
-  void _setupSocketListeners() {
-    _socket.onConnect((_) {
-      print('Connected to WebSocket server');
+  void _setupSocketListeners() async {
+    _socket.onConnect((_) async {
+      // print('Connected to WebSocket server');
       _isConnected = true;
     });
 
     _socket.onDisconnect((_) {
-      print('Disconnected from WebSocket server');
+      // print('Disconnected from WebSocket server');
       _isConnected = false;
     });
 
     _socket.onError((error) {
-      print('WebSocket Error: $error');
+      // print('WebSocket Error: $error');
     });
 
     _socket.onConnectError((error) {
-      print('Connection Error: $error');
+      // print('Connection Error: $error');
     });
   }
 
@@ -66,7 +64,7 @@ class WebSocketService {
       await _reconnect();
     }
 
-    _socket.emitWithAck(event, data, ack: (response) {
+    _socket.emitWithAck(event, data, ack: (response) async {
       if (response is Map<String, dynamic>) {
         completer.complete(response);
       } else {
@@ -100,11 +98,11 @@ class WebSocketService {
     });
   }
 
-  void emit(String event, Map<String, dynamic> data) {
+  Future<void> emit(String event, Map<String, dynamic> data) async {
     if (_isConnected) {
       _socket.emit(event, data);
     } else {
-      print('Socket not connected. Cannot emit event: $event');
+      // print('Socket not connected. Cannot emit event: $event');
     }
   }
 
@@ -122,15 +120,15 @@ class WebSocketService {
 
   // Token management methods
   Future<void> setAuthToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AUTH_TOKEN_KEY, token);
+    // final prefs = await SharedPreferences.getInstance();
+    // await prefs.setString(AUTH_TOKEN_KEY, token);
 
     // Update socket auth in our local options
-    _socketOptions['auth'] = {'token': token};
+    _socketOptions['auth'] = {'token': varToken};
 
     // Reconnect to apply changes
     if (_isConnected) {
-      _socket.disconnect();
+      // _socket.disconnect();
       // Create a new socket with updated options
       _socket = io.io(_serverUrl, _socketOptions);
       _setupSocketListeners();
@@ -140,6 +138,8 @@ class WebSocketService {
 
   Future<String?> getAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
+    // // print('Get');
+    // // print(prefs.getString(AUTH_TOKEN_KEY));
     return prefs.getString(AUTH_TOKEN_KEY);
   }
 

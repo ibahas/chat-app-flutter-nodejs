@@ -1,9 +1,9 @@
+import 'package:chat_app/providers/chat_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../home/home_screen.dart';
-import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,9 +25,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       try {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
         bool success = await authProvider.login(
             _emailController.text.trim(), _passwordController.text.trim());
-        print("Login Success: $success"); // Add Log
+        // print("Login Success: $success"); // Add Log
         setState(() => _isLoading = false);
 
         if (success) {
@@ -37,7 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Check if user is admin
           bool isAdmin = await authProvider.checkAdminStatus();
-          print("isAdmin: $isAdmin");
+          chatProvider.refreshUserGroups(authProvider.currentUser!.id);
+
+          // // print("isAdmin: $isAdmin");
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => HomeScreen(isAdmin: isAdmin)));
@@ -53,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } catch (e) {
         setState(() => _isLoading = false);
-        print("Login error: $e");
+        // print("Login error: $e");
         if (!mounted) return; // Check if widget is still mounted
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

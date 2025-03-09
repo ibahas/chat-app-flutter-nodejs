@@ -18,7 +18,7 @@ class AdminProvider with ChangeNotifier {
       _users = await _adminService.getAllUsers();
       notifyListeners();
     } catch (e) {
-      print('Error fetching users: $e');
+      // // print('Error fetching users: $e');
     }
   }
 
@@ -27,7 +27,7 @@ class AdminProvider with ChangeNotifier {
       await _adminService.blockUser(userId);
       await fetchAllUsers();
     } catch (e) {
-      print('Error blocking user: $e');
+      // // print('Error blocking user: $e');
     }
   }
 
@@ -36,7 +36,7 @@ class AdminProvider with ChangeNotifier {
       await _adminService.unblockUser(userId);
       await fetchAllUsers();
     } catch (e) {
-      print('Error unblocking user: $e');
+      // print('Error unblocking user: $e');
     }
   }
 
@@ -45,7 +45,7 @@ class AdminProvider with ChangeNotifier {
       _groups = await _adminService.getAllGroups();
       notifyListeners();
     } catch (e) {
-      print('Error fetching groups: $e');
+      // print('Error fetching groups: $e');
     }
   }
 
@@ -54,7 +54,7 @@ class AdminProvider with ChangeNotifier {
       await _adminService.deleteGroup(groupId);
       await fetchAllGroups();
     } catch (e) {
-      print('Error deleting group: $e');
+      // print('Error deleting group: $e');
     }
   }
 }

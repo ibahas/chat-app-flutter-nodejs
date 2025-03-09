@@ -98,7 +98,7 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
     try {
       isSuccess = await chatProvider.updateGroupName(widget.groupId, { 'name': newGroupName }); //Correct method name here
     } catch (error) {
-      print('error when update group: $error');
+      // print('error when update group: $error');
     }
     return isSuccess;
   }
@@ -167,7 +167,7 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
         //Call Websocket here to add User
        isSuccess = await chatProvider.addUserToGroup(groupId,  userId); //Correct method name here
       } catch (error) {
-        print('error when add users group: $error');
+        // print('error when add users group: $error');
         // if error occurs in request show a scaffoldM
       }
       return isSuccess;

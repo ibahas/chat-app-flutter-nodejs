@@ -56,7 +56,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         });
       }
     } catch (e) {
-      print("Error loading all users: $e");
+      // print("Error loading all users: $e");
     }
   }
 
@@ -70,8 +70,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _messageSubscription = chatProvider
         .groupMessagesStream(widget.group.id)
         .listen((List<MessageModel> newMessages) {
-      print(
-          'GroupChatScreen - Message stream update received - GroupId: ${widget.group.id}');
+      // print('GroupChatScreen - Message stream update received - GroupId: ${widget.group.id}');
       if (mounted) {
         setState(() {
           _messages.insertAll(0, newMessages);

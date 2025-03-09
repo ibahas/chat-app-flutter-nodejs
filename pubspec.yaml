@@ -23,6 +23,7 @@ dependencies:
   flutter_sound: ^9.23.1
   flutter_webrtc: ^0.12.11
   get_it: ^8.0.3
+  jwt_decoder: ^2.0.1
   permission_handler: ^11.4.0
   provider: ^6.1.2
   shared_preferences: ^2.5.2

@@ -151,7 +151,7 @@ async function createDefaultUsers() {
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) {
-    console.log('Not authenticated 1');
+    console.log('Not authenticated');
     return next(); // Allow connection but user is not authenticated
   }
 
@@ -305,7 +305,7 @@ io.on('connection', (socket) => {
   socket.on('getUserInfo', async (data, callback) => {
     console.log(`getUserInfo`);
     if (!socket.userId) {
-      console.log('Not authenticated 2');
+      console.log('Not authenticated');
       return callback({ success: false, message: 'Not authenticated' });
     }
 
@@ -532,11 +532,8 @@ io.on('connection', (socket) => {
   // Get user groups
   socket.on('getUserGroups', async (data, callback) => {
     console.log(`getUserGroups`);
-    console.log(socket);
-    console.log(data);
-
     if (!socket.userId) {
-      console.log('Not authenticated 3');
+      console.log('Not authenticated');
       return callback({ success: false, message: 'Not authenticated' });
     }
 
@@ -580,7 +577,7 @@ io.on('connection', (socket) => {
   socket.on('sendGroupMessageRealTime', async (data, callback) => {
     console.log(`sendGroupMessageRealTime`);
     if (!socket.userId) {
-      console.log('Not authenticated 4');
+      console.log('Not authenticated');
       return callback && callback({ success: false, message: 'Not authenticated' });
     }
 
@@ -650,7 +647,7 @@ io.on('connection', (socket) => {
   socket.on('removeUserFromGroup', async (data, callback) => {
     console.log(`removeUserFromGroup`);
     if (!socket.userId || !socket.user) {
-      console.log('Not authenticated 5');
+      console.log('Not authenticated');
       return callback({ success: false, message: 'Not authenticated' });
     }
 
@@ -680,7 +677,7 @@ io.on('connection', (socket) => {
   socket.on('addUserToGroup', async (data, callback) => {
     console.log(`addUserToGroup`);
     if (!socket.userId || !socket.user) {
-      console.log('Not authenticated 6');
+      console.log('Not authenticated');
       return callback({ success: false, message: 'Not authenticated' });
     }
 
@@ -733,7 +730,7 @@ io.on('connection', (socket) => {
   socket.on('searchUsers', async (data, callback) => {
     console.log(`searchUsers`);
     if (!socket.userId) {
-      console.log('Not authenticated 7');
+      console.log('Not authenticated');
       return callback({ success: false, message: 'Not authenticated' });
     }
 
@@ -767,7 +764,7 @@ io.on('connection', (socket) => {
   socket.on('createGroup', async (data, callback) => {
     console.log(`createGroup`);
     if (!socket.userId) {
-      console.log('Not authenticated 8');
+      console.log('Not authenticated');
       return callback({ success: false, message: 'Not authenticated' });
     }
 
@@ -828,7 +825,7 @@ io.on('connection', (socket) => {
   socket.on('sendGroupMessage', async (data, callback) => {
     console.log(`sendGroupMessage`);
     if (!socket.userId) {
-      console.log('Not authenticated 9');
+      console.log('Not authenticated');
       return callback && callback({ success: false, message: 'Not authenticated' });
     }
 

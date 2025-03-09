@@ -1,5 +1,6 @@
 // auth_service.dart
 import 'dart:convert';
+import 'package:chat_app/core/var.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../services/websocket_service.dart';
@@ -21,13 +22,15 @@ class AuthService {
 
       if (response['success'] == true) {
         final token = response['token'];
-        print("Login success, saving token: $token");
+        varToken = token;
+
+        // // print("Login success, saving token: $token");
         // Store token in WebSocketService
         await _socketService.setAuthToken(token);
 
-        print('User data before parsing:');
-        print(response['user']);
-        print('-------------------------------------');
+        // // print('User data before parsing:');
+        // // print(response['user']);
+        // // print('-------------------------------------');
         // Create user model from response
         final user = UserModel.fromJson(response['user']);
 
@@ -38,7 +41,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      print('Login error: $e');
+      // print('Login error: $e');
       throw Exception('Login failed: $e');
     }
   }
@@ -69,7 +72,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      print('Signup error: $e');
+      // print('Signup error: $e');
       return null;
     }
   }
@@ -83,7 +86,7 @@ class AuthService {
       // Clear locally stored user data
       await _clearUserData();
     } catch (e) {
-      print('Signout error: $e');
+      // print('Signout error: $e');
       // Even if server logout fails, still clear local data
       await _clearUserData();
     }
@@ -98,7 +101,7 @@ class AuthService {
 
       return response['success'] == true && response['isAdmin'] == true;
     } catch (e) {
-      print('Admin check error: $e');
+      // print('Admin check error: $e');
       return false;
     }
   }
@@ -123,7 +126,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      print('Get user info error: $e');
+      // print('Get user info error: $e');
       return null;
     }
   }
@@ -156,13 +159,13 @@ class AuthService {
           return null;
         }
       } catch (e) {
-        print('Session validation error: $e');
+        // print('Session validation error: $e');
         // If server validation fails but we have local data, return it
         // This allows offline login when server is unreachable
         return user;
       }
     } catch (e) {
-      print('Auto login error: $e');
+      // print('Auto login error: $e');
       return null;
     }
   }
@@ -174,7 +177,7 @@ class AuthService {
       await prefs.setString(user_data_key, json.encode(user.toJson()));
       await prefs.setBool(auth_status_key, true);
     } catch (e) {
-      print('Save user data error: $e');
+      // print('Save user data error: $e');
     }
   }
 
@@ -185,7 +188,7 @@ class AuthService {
       await prefs.remove(user_data_key);
       await prefs.setBool(auth_status_key, false);
     } catch (e) {
-      print('Clear user data error: $e');
+      // print('Clear user data error: $e');
     }
   }
 }

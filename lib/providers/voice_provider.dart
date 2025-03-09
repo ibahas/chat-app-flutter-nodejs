@@ -48,7 +48,7 @@ class VoiceMessageProvider with ChangeNotifier {
       _isRecording = true;
       notifyListeners();
     } catch (e) {
-      print('Error starting recording: $e');
+      // print('Error starting recording: $e');
     }
   }
 
@@ -58,7 +58,7 @@ class VoiceMessageProvider with ChangeNotifier {
       _isRecording = false;
       notifyListeners();
     } catch (e) {
-      print('Error stopping recording: $e');
+      // print('Error stopping recording: $e');
     }
   }
 
@@ -84,10 +84,10 @@ class VoiceMessageProvider with ChangeNotifier {
             response.data['url']; // Assuming the server returns a URL
         notifyListeners();
       } else {
-        print('Upload failed with status: ${response.statusCode}');
+        // print('Upload failed with status: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error uploading voice message: $e');
+      // print('Error uploading voice message: $e');
     }
   }
 
@@ -112,7 +112,7 @@ class VoiceMessageProvider with ChangeNotifier {
       _isPlaying = true;
       notifyListeners();
     } catch (e) {
-      print('Error playing voice message: $e');
+      // print('Error playing voice message: $e');
     }
   }
 

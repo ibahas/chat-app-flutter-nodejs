@@ -25,7 +25,7 @@ class AdminService {
         throw Exception(response['message'] ?? 'Failed to get users');
       }
     } catch (e) {
-      print('Error getting all users: $e');
+      // print('Error getting all users: $e');
       throw Exception('Failed to retrieve users: $e');
     }
   }
@@ -40,7 +40,7 @@ class AdminService {
         throw Exception(response['message'] ?? 'Failed to block user');
       }
     } catch (e) {
-      print('Error blocking user: $e');
+      // print('Error blocking user: $e');
       throw Exception('Failed to block user: $e');
     }
   }
@@ -55,7 +55,7 @@ class AdminService {
         throw Exception(response['message'] ?? 'Failed to unblock user');
       }
     } catch (e) {
-      print('Error unblocking user: $e');
+      // print('Error unblocking user: $e');
       throw Exception('Failed to unblock user: $e');
     }
   }
@@ -74,7 +74,7 @@ class AdminService {
         throw Exception(response['message'] ?? 'Failed to get groups');
       }
     } catch (e) {
-      print('Error getting all groups: $e');
+      // print('Error getting all groups: $e');
       throw Exception('Failed to retrieve groups: $e');
     }
   }
@@ -89,7 +89,7 @@ class AdminService {
         throw Exception(response['message'] ?? 'Failed to delete group');
       }
     } catch (e) {
-      print('Error deleting group: $e');
+      // print('Error deleting group: $e');
       throw Exception('Failed to delete group: $e');
     }
   }

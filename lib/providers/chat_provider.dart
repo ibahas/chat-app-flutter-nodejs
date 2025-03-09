@@ -38,6 +38,23 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<void> refreshUserGroups(String userId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Fetch latest user groups from the server
+      await fetchUserGroups(userId);
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // ChatProvider.dart
   Future<void> fetchUserGroups(String userId) async {
     try {
@@ -70,17 +87,15 @@ class ChatProvider with ChangeNotifier {
   void onGroupMessageReceived(
       String groupId, Function(List<MessageModel>) onMessageReceived) {
     _socketService.listen('groupMessages:$groupId', (data) {
-      print(
-          'ChatProvider - onGroupMessageReceived - Event received for groupId: $groupId'); // ADD THIS LINE
+      // print('ChatProvider - onGroupMessageReceived - Event received for groupId: $groupId'); // ADD THIS LINE
       if (data is List) {
         final messages = data.map((msg) => MessageModel.fromJson(msg)).toList();
-        // print('ChatProvider - onGroupMessageReceived - Messages data:',
+        // // print('ChatProvider - onGroupMessageReceived - Messages data:',
         //     messages); // ADD THIS LINE
         _messageController.add(messages); // Add messages to the stream
         onMessageReceived(messages);
       } else {
-        print(
-            'ChatProvider - onGroupMessageReceived - Unexpected data format: $data'); // ADD THIS LINE
+        // print('ChatProvider - onGroupMessageReceived - Unexpected data format: $data'); // ADD THIS LINE
       }
     });
   }
@@ -92,7 +107,7 @@ class ChatProvider with ChangeNotifier {
   //Remove User from group
   Future<bool> removeUserFromGroup(String groupId, String userId) async {
     // Return bool
-    print('removeUserFromGroup $groupId $userId');
+    // print('removeUserFromGroup $groupId $userId');
 
     try {
       final response = await _socketService.emitWithAck('removeUserFromGroup', {
@@ -107,7 +122,7 @@ class ChatProvider with ChangeNotifier {
             response['message'] ?? 'Failed to remove user from group');
       }
     } catch (e) {
-      print('Error removing user from group: $e');
+      // print('Error removing user from group: $e');
       return false; // Return false for failure
     }
   }
@@ -115,21 +130,21 @@ class ChatProvider with ChangeNotifier {
   //Add user from group
   Future<bool> addUserToGroup(String groupId, String userId) async {
     // Return bool
-    print('addUserToGroup $groupId $userId');
+    // print('addUserToGroup $groupId $userId');
 
     try {
       final response = await _socketService.emitWithAck('addUserToGroup', {
         'groupId': groupId,
         'userId': userId,
       });
-      print('addUserToGroup response $response');
+      // print('addUserToGroup response $response');
       if (response['success'] == true) {
         return true; // Return true for success
       } else {
         throw Exception(response['message'] ?? 'Failed to add user to group');
       }
     } catch (e) {
-      print('Error adding user to group: $e');
+      // print('Error adding user to group: $e');
       return false; // Return false for failure
     }
   }
@@ -151,7 +166,7 @@ class ChatProvider with ChangeNotifier {
         throw Exception(response['message'] ?? 'Failed to update group');
       }
     } catch (e) {
-      print('Error updating group: $e');
+      // print('Error updating group: $e');
       return false;
     }
   }
