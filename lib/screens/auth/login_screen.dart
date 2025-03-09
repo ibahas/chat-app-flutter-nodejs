@@ -14,8 +14,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailController = TextEditingController(text: 'admin@admin.com');
+  final _passwordController = TextEditingController(text: '123456');
   bool _isLoading = false;
 
   // login_screen.dart
@@ -74,7 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextFormField(
                 controller: _emailController,
@@ -106,13 +107,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text('Login'),
                     ),
               const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const RegistrationScreen()));
-                },
-                child: const Text('Create an Account'),
-              ),
+              // TextButton(
+              //   onPressed: () {
+              //     Navigator.of(context).push(MaterialPageRoute(
+              //         builder: (_) => const RegistrationScreen()));
+              //   },
+              //   child: const Text('Create an Account'),
+              // ),
             ],
           ),
         ),
