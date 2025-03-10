@@ -368,7 +368,7 @@ io.on('connection', (socket) => {
     //If role is user  return only users names.
     if (socket.user && socket.user.role !== 'admin') {
       try {
-        const users = await db.all('SELECT id, name FROM users');
+        const users = await db.all('SELECT id, name FROM users where role != admin');
         callback({
           success: true,
           data: users.map(user => ({
@@ -520,6 +520,30 @@ io.on('connection', (socket) => {
       // Optionally, emit a group update event to notify clients
       io.emit('admin:groupUpdated', { id: groupId, deleted: true });
 
+
+      // Notify users that the group was deleted and send the data
+      const group = await db.get('SELECT id, name FROM groups WHERE id = ?', [groupId]);
+      if (group) {
+        // Get all members of the group
+        const groupMembers = await db.all('SELECT user_id FROM group_members WHERE group_id = ?', groupId);
+
+        // Iterate over each member and emit the event to their sockets
+        for (const member of groupMembers) {
+          const userSockets = Array.from(io.sockets.sockets.values()).filter(s => s.userId === member.user_id);
+          const resultRemove = {
+            id: group.id,
+            name: group.name,
+            message: "group was deleted."
+          };
+
+          userSockets.forEach(thesocket => thesocket?.emit('groupToWasRemoved', resultRemove));
+
+          thesocket?.emit('groupToWasRemoved', (resultRemove));
+        }
+      }
+      //Call for all to reload the peoples of group
+      void await fetchUpdate(groupId, db);
+      //Update list if success
       callback({ success: true });
     } catch (error) {
       console.log('Delete group error:', error);
@@ -593,9 +617,9 @@ io.on('connection', (socket) => {
       }
 
       const messageData = {
-        id: Date.now().toString(), // Generate a temporary ID (not saved)
+        // id: Date.now().toString(), // Generate a temporary ID (not saved)
         groupId: groupId,
-        senderId: senderId,
+        // senderId: senderId,
         content: content,
         timestamp: new Date().toISOString(),
         type: type
@@ -620,7 +644,7 @@ io.on('connection', (socket) => {
   socket.on('updateGroupName', async (data, callback) => {
     console.log(`updateGroupName`);
 
-    //Check auth
+    // Check auth
     if (!socket.userId || !socket.user || socket.user.role !== 'admin') {
       return callback({ success: false, message: 'Unauthorized' });
     }
@@ -633,15 +657,43 @@ io.on('connection', (socket) => {
         return callback({ success: false, message: 'Missing group ID or name' });
       }
 
+      // Check if the user is an admin to modify.
+      const groupF = await db.get('SELECT admin_id FROM groups WHERE id = ?', groupId);
+
+      //Check if the user it's calling is an admin the group.
+      if (groupF.admin_id !== socket.user.id) {
+        console.log(`removeUserToGroup - User ID: ${socket.userId} is not an admin of group: ${groupId}`);
+        return callback({ success: false, message: 'You are not authorized to add members from this group.' });
+      }
+
       //Update the GroupName
       await db.run('UPDATE groups SET name = ? WHERE id = ?', [name, groupId]);
-      callback({ success: true });
 
+      //Send the update information
+      //Update the GroupName
+      const groupD = await db.get('SELECT id, name, admin_id FROM groups WHERE id = ?', [groupId]);
+      //Convert to resualt.
+      const members = await db.all(
+        'SELECT user_id FROM group_members WHERE group_id = ?',
+        [groupId]
+      );
+      let result = {
+        id: groupD.id,
+        name: groupD.name,
+        adminId: groupD.admin_id,
+        members: members.map(m => m.user_id)
+      };
+
+      io.emit('updateOfGroupName', result);
+
+      callback({ success: true });
     } catch (error) {
       console.log('Error Update group:', error);
       callback({ success: false, message: 'Failed to update group' });
     }
   });
+
+
 
   //removeUserFromGroup
   socket.on('removeUserFromGroup', async (data, callback) => {
@@ -650,7 +702,10 @@ io.on('connection', (socket) => {
       console.log('Not authenticated');
       return callback({ success: false, message: 'Not authenticated' });
     }
-
+    if (socket.user.role !== 'admin') {
+      console.log('Not authenticated');
+      return callback({ success: false, message: 'Not authenticated' });
+    }
     try {
       const { groupId, userId } = data;
 
@@ -659,42 +714,117 @@ io.on('connection', (socket) => {
         return callback({ success: false, message: 'Missing group ID or user ID' });
       }
 
+      // Check group admin
+      const groupA = await db.get('SELECT admin_id FROM groups WHERE id = ?', groupId);
+
+      //Check if the user it's calling is an admin the group.
+      if (groupA.admin_id !== socket.user.id) {
+        console.log(`removeUserFromGroup - User ID: ${socket.userId} is not an admin of group: ${groupId}`);
+        return callback({ success: false, message: 'You are not authorized to remove members from this group.' });
+      }
+      // Check if the user to be removed is the admin himself
+      if (userId === socket.userId) {
+        console.log(`removeUserFromGroup - User ID: ${userId} attempted to remove themselves from group: ${groupId}`);
+        return callback({ success: false, message: 'Admin cannot remove themselves.' });
+      }
+
       // Remove the user from the group
-      await db.run(
+      const result = await db.run(
         'DELETE FROM group_members WHERE group_id = ? AND user_id = ?',
         [groupId, userId]
       );
 
+      // Check if any rows were actually deleted.
+      if (result.changes === 0) {
+        console.log('Remove user from group error: User is not a member of the Group');
+        return callback({ success: false, message: 'Failed to remove user from group: User is not a member of the group' });
+      }
+
+      const userSockets = Array.from(io.sockets.sockets.values())
+        .filter(s => s.userId === userId);
+      const groupB = await db.get('SELECT id, name FROM groups where id = ?', [groupId]);
+      /*const members = await db.all(
+        'SELECT user_id FROM group_members WHERE group_id = ?',
+        [groupId]
+      );*/
+      let resultRemove = {
+        id: groupB.id,
+        name: groupB.name,
+        userId: userId,
+        message: "It was ejected from group."
+      };
+
+      userSockets.forEach(userSocket => {
+
+        userSocket?.emit('groupToWasRemoved', resultRemove);
+        userSocket.disconnect(true); // Optionally disconnect the socket as well
+      });
+
+      //Call for all to reload the peoples of group
+      void await fetchUpdate(groupId, db);
       //Update list if success
       callback({ success: true });
     } catch (error) {
       console.log('Remove user from group error:', error);
       callback({ success: false, message: 'Failed to remove user from group' });
     }
-  }
-  );
+  });
+
   //addUserToGroup
   socket.on('addUserToGroup', async (data, callback) => {
     console.log(`addUserToGroup`);
-    if (!socket.userId || !socket.user) {
+    if (!socket.userId || !socket.user || socket.user.role !== 'admin') {
       console.log('Not authenticated');
-      return callback({ success: false, message: 'Not authenticated' });
+      return callback({ success: false, message: 'Unauthorized' });
     }
-
     try {
       const { groupId, userId } = data;
+
+      // Check group admin
+      const groupC = await db.get('SELECT admin_id FROM groups WHERE id = ?', groupId);
+      //Check if the user it's calling is an admin the group.
+      if (groupC.admin_id !== socket.user.id) {
+        console.log(`addUserToGroup - User ID: ${socket.userId} is not an admin of group: ${groupId}`);
+        return callback({ success: false, message: 'You are not authorized to add members from this group.' });
+      }
 
       // Validate data
       if (!groupId || !userId) {
         return callback({ success: false, message: 'Missing group ID or user ID' });
       }
 
-      // Add the user to the group
+      //Check if user already part of
+      const existingMember = await db.get('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+      if (existingMember) {
+        console.log(`removeUserToGroup - User ID: ${userId} it's already an member.`)
+        return callback({ success: false, message: "User already part of" });
+
+      }
+
+      // Insert the user into the group
       await db.run(
         'INSERT INTO group_members (group_id, user_id) VALUES (?, ?)',
         [groupId, userId]
       );
 
+      //Update the GroupName
+      const groupD = await db.get('SELECT id, name, admin_id FROM groups WHERE id = ?', [groupId]);
+      //Convert to resualt.
+      const members = await db.all(
+        'SELECT user_id FROM group_members WHERE group_id = ?',
+        [groupId]
+      );
+      let result = {
+        id: groupD.id,
+        name: groupD.name,
+        adminId: groupD.admin_id,
+        members: members.map(m => m.user_id)
+      };
+
+      io.emit('newGroupJoined', result);
+
+      //Call for all to reload the peoples of group
+      void await fetchUpdate(groupId, db);
       //Update list if success
       callback({ success: true });
     } catch (error) {
@@ -703,6 +833,8 @@ io.on('connection', (socket) => {
     }
   });
 
+
+
   const fetchUpdate = async (groupId, db) => {
 
     if (!groupId) {
@@ -710,15 +842,16 @@ io.on('connection', (socket) => {
       console.error("it not found groupId of " + groupId, "Please debug call or view here  on groupId value")
     }
 
-
     try { //TODO get socket to update  users in here
 
-      let fetch = io.to(`group:${groupId}`)
+      // Use io.to to target the group's room directly
+      const fetch = io.to(`group:${groupId}`);
 
-      fetch?.emit("To_RELOAD_allgroupPeopleNewUSER-", true)
-        ; console.warn(`update of list is for that ID of :  ->${socket?.id}`)
+      fetch.emit("To_RELOAD_allgroupPeopleNewUSER-" + groupId, true);  // Emit to all sockets in the room
 
-      return console.log("update")
+      console.warn(`update of list is for that Group Id:  ->${groupId}`) //debug the new list of group
+
+      return console.log("update was OK-> " + groupId)
     } catch (_) {
       return console.error(_)
 
@@ -739,9 +872,10 @@ io.on('connection', (socket) => {
 
       // Search users
       const users = await db.all(
-        'SELECT id, email, name, role, is_blocked, created_at FROM users WHERE name LIKE ? OR email LIKE ?',
-        [`%${query}%`, `%${query}%`]
+        'SELECT id, email, name, role, is_blocked, created_at FROM users WHERE (name LIKE ? OR email LIKE ?) AND role != ?',
+        [`%${query}%`, `%${query}%`, 'admin']
       );
+
 
       //  user IDs of members in a group
       callback({
@@ -790,7 +924,32 @@ io.on('connection', (socket) => {
           'INSERT INTO group_members (group_id, user_id) VALUES (?, ?)',
           [groupId, memberId]
         );
+
       }
+
+      //Emit to each Users that will part of from the group
+      for (const memberId of members) {
+        const userSockets = Array.from(io.sockets.sockets.values()).filter(s => s.userId === memberId);
+        const groupD = await db.get('SELECT id, name, admin_id FROM groups where id = ?', [groupId]);
+        const members = await db.all(
+          'SELECT user_id FROM group_members WHERE group_id = ?',
+          [groupId]
+        );
+        let result = {
+          id: groupD.id,
+          name: groupD.name,
+          adminId: groupD.admin_id,
+          members: members.map(m => m.user_id)
+        };
+
+        userSockets.forEach(userSocket => {
+          userSocket?.emit('newGroupJoined', result);
+
+        });
+
+      } //For send information for each.
+      //Call for all to reload the peoples of group
+      void await fetchUpdate(groupId, db);
 
       callback({ success: true });
     } catch (error) {
@@ -836,16 +995,18 @@ io.on('connection', (socket) => {
       const { senderId, content, type } = message;
 
       // Save the message to the database
-      await db.run(
-        'INSERT INTO messages (id, group_id, sender_id, content, timestamp, type) VALUES (?, ?, ?, ?, ?, ?)',
-        [messageId, groupId, senderId, content, timestamp, type]
-      );
+      // await db.run(
+      // Save the message to the database
+      // await db.run(
+      //   'INSERT INTO messages (id, group_id, sender_id, content, timestamp, type) VALUES (?, ?, ?, ?, ?, ?)',
+      //   [messageId, groupId, senderId, content, timestamp, type]
+      // ));
 
       // Fetch the message from the database to ensure consistency
-      const savedMessage = await db.get(
-        'SELECT id, group_id, sender_id, content, timestamp, type FROM messages WHERE id = ?',
-        messageId
-      );
+      // const savedMessage = await db.get(
+      //   'SELECT id, group_id, sender_id, content, timestamp, type FROM messages WHERE id = ?',
+      //   messageId
+      // );
 
       // Emit the message to all clients in the group
       io.to(`group:${groupId}`).emit(`groupMessages:${groupId}`, [savedMessage]);

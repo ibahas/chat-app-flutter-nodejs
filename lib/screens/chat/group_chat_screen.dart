@@ -1,16 +1,15 @@
 import 'dart:async';
-
-import 'package:chat_app/models/user_model.dart';
 import 'package:chat_app/providers/admin_provider.dart';
+import 'package:chat_app/providers/chat_provider.dart';
 import 'package:chat_app/providers/voice_provider.dart';
-import 'package:chat_app/screens/chat/group_management_dialog';
+import 'package:chat_app/screens/chat/group_management_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../models/group_model.dart';
 import '../../models/message_model.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/chat_provider.dart';
+import '../../services/chat_service.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final GroupModel group;
@@ -22,11 +21,15 @@ class GroupChatScreen extends StatefulWidget {
 }
 
 class _GroupChatScreenState extends State<GroupChatScreen> {
+  final ChatService _chatService = ChatService();
+  final TextEditingController _messageController = TextEditingController();
+  late StreamSubscription<List<MessageModel>> _messageSubscription;
   final List<MessageModel> _messages = [];
-  final _messageController = TextEditingController();
   List<UserModel> _allUsers = [];
-  StreamSubscription<List<MessageModel>>? _messageSubscription;
   late GroupModel groupModel;
+  bool _allUsersLoaded = false;
+  StreamSubscription<String>?
+      _navigationSubscription; // Subscription for navigation stream
 
   @override
   void initState() {
@@ -36,110 +39,112 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAllUsers();
       _subscribeToMessages();
+      _subscribeToNavigationEvents(); // Subscribe to navigation events
+    });
+    // check if current user id  exits in memberIds.
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!widget.group.memberIds.contains(authProvider.currentUser!.id)) {
+      //Route to home screen.
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _subscribeToNavigationEvents() {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    _navigationSubscription = chatProvider.navigationStream.listen((groupId) {
+      if (groupId == widget.group.id) {
+        // User was removed from *this* group, navigate back to HomeScreen
+        Navigator.of(context).pop();
+      }
     });
   }
 
   @override
   void dispose() {
     _messageController.dispose();
-    _messageSubscription?.cancel();
+    _messageSubscription.cancel();
+    _navigationSubscription?.cancel(); // Cancel navigation subscription
     super.dispose();
   }
 
+  // Load all users (for displaying names)
   Future<void> _loadAllUsers() async {
+    if (_allUsersLoaded) return; // Prevent repeated calls
+    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
     try {
-      final adminProvider = Provider.of<AdminProvider>(context, listen: false);
       await adminProvider.fetchAllUsers();
-      if (mounted) {
-        setState(() {
-          _allUsers = adminProvider.users;
-        });
-      }
+      setState(() {
+        _allUsers = adminProvider.users;
+        _allUsersLoaded = true;
+      });
     } catch (e) {
-      // print("Error loading all users: $e");
+      print("Error loading all users: $e");
+      // Handle the error, maybe show a snackbar
     }
   }
 
-  Future<void> _subscribeToMessages() async {
-    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-
-    // 1. Start listening for new messages
-    chatProvider.listenToGroupMessages(widget.group.id);
-
-    // 2. Continue listening for new messages via the stream (your existing stream listener - now it's the *only* source of messages)
-    _messageSubscription = chatProvider
-        .groupMessagesStream(widget.group.id)
-        .listen((List<MessageModel> newMessages) {
-      // print('GroupChatScreen - Message stream update received - GroupId: ${widget.group.id}');
-      if (mounted) {
-        setState(() {
-          _messages.insertAll(0, newMessages);
-        });
-      }
-    });
+  // Subscribe to group messages
+  void _subscribeToMessages() {
+    _messageSubscription =
+        _chatService.getGroupMessages(widget.group.id).listen(
+      (List<MessageModel> newMessages) {
+        if (mounted) {
+          setState(() {
+            // Avoid duplicates
+            for (var msg in newMessages) {
+              if (!_messages.any((existing) => existing.id == msg.id)) {
+                _messages.insert(0, msg);
+              }
+            }
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint("Error receiving messages: $error");
+      },
+    );
   }
 
-  void _sendMessage({MessageType type = MessageType.text}) async {
+  // Send message
+  void _sendMessage() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    final voiceProvider =
-        Provider.of<VoiceMessageProvider>(context, listen: false);
-
-    String content = type == MessageType.text
-        ? _messageController.text.trim()
-        : voiceProvider.uploadedVoiceUrl ?? '';
+    final senderId = authProvider.currentUser!.id;
+    final content = _messageController.text.trim();
 
     if (content.isEmpty) return;
 
-    // **Immediately add the message to the local list**
     final message = MessageModel(
-      senderId: authProvider.currentUser!.id,
+      senderId: senderId,
       content: content,
       timestamp: DateTime.now(),
-      type: type,
+      type: MessageType.text,
     );
-    setState(() {
-      _messages.insert(0, message); // Insert at the beginning for reversed list
-    });
 
-    await chatProvider.sendGroupMessage(
-      groupId: widget.group.id,
-      senderId: authProvider.currentUser!.id,
-      content: content,
-      type: type,
-    );
-    _messageController
-        .clear(); // **Uncomment this line to clear the input field**
+    // Optimistically add the message
+    // setState(() {
+    //   _messages.insert(0, message);
+    // });
+
+    try {
+      await _chatService.sendGroupMessage(
+          groupId: widget.group.id, message: message);
+      _messageController.clear();
+    } catch (e) {
+      debugPrint("Failed to send message: $e");
+      // Optionally, remove the message if sending failed
+    }
   }
 
-  Widget _buildMessageInput() {
-    final voiceProvider = Provider.of<VoiceMessageProvider>(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.send),
-            onPressed: () => _sendMessage(),
-          ),
-        ],
-      ),
-    );
+  // Get sender name
+  String _getUserName(String senderId) {
+    try {
+      return _allUsers.firstWhere((user) => user.id == senderId).name;
+    } catch (e) {
+      return 'Unknown User';
+    }
   }
 
+  // Build message item
   Widget _buildMessageItem(MessageModel message) {
     final authProvider = Provider.of<AuthProvider>(context);
     final isCurrentUser = message.senderId == authProvider.currentUser!.id;
@@ -157,58 +162,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isCurrentUser ? 'You:' : getUserName(message.senderId),
+              isCurrentUser ? 'You' : _getUserName(message.senderId),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
-            if (message.type == MessageType.text) Text(message.content),
-            if (message.type == MessageType.voice)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.mic),
-                  const Text('Voice Message'),
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    onPressed: () {
-                      Provider.of<VoiceMessageProvider>(context, listen: false)
-                          .playVoiceMessage(message.content);
-                    },
-                  ),
-                ],
-              ),
+            Text(message.content),
           ],
         ),
       ),
     );
-  }
-
-  String getUserName(String senderId) {
-    try {
-      final user = _allUsers.firstWhere((element) => element.id == senderId);
-      return user.name;
-    } catch (e) {
-      return 'Unknown User';
-    }
-  }
-
-  void _showGroupManagementDialog() {
-    showDialog(
-        context: context,
-        builder: (context) {
-          return GroupManagementDialog(
-            groupModel: groupModel,
-            groupId: widget.group.id,
-            adminId: widget.group.adminId,
-            memberIds: widget.group.memberIds,
-            allUsers: _allUsers,
-            onGroupUpdated: (GroupModel updatedGroup) {
-              //widget.group = updatedGroup;
-              groupModel = updatedGroup;
-              setState(() {});
-            },
-          );
-        });
   }
 
   @override
@@ -234,12 +196,59 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               reverse: true,
               itemCount: _messages.length,
               itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageItem(message);
+                return _buildMessageItem(_messages[index]);
               },
             ),
           ),
           _buildMessageInput(),
+        ],
+      ),
+    );
+  }
+
+  void _showGroupManagementDialog() async {
+    //Upgrade allUsers to a required parameter
+    await _loadAllUsers();
+
+    showDialog(
+        context: context,
+        builder: (context) {
+          return GroupManagementDialog(
+            groupId: widget.group.id,
+            adminId: widget.group.adminId,
+            memberIds: widget.group.memberIds,
+            allUsers: _allUsers,
+            groupModel: groupModel,
+            onGroupUpdated: (GroupModel newGroup) {
+              setState(() {
+                groupModel = newGroup;
+              });
+            },
+          );
+        });
+  }
+
+  Widget _buildMessageInput() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              decoration: InputDecoration(
+                hintText: 'Type a message...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.send),
+            onPressed: _sendMessage,
+          ),
         ],
       ),
     );

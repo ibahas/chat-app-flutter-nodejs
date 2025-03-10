@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:chat_app/models/group_model.dart';
+import 'package:chat_app/services/chat_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:chat_app/models/user_model.dart';
@@ -19,6 +23,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isInitializing = true;
+  final ChatService _chatService = ChatService();
+  //Use the state in here to reload in all state
+  late StreamSubscription<GroupModel> newgroupControllerGroup;
+  //Use the state in here to reload in all state
+  late StreamSubscription<GroupModel> removedUserFromUpdateGroup;
+
+  List<UserModel> searchResults = [];
 
   @override
   void didChangeDependencies() {
@@ -28,11 +39,49 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      //_subscribeToNewGroupJoined, _subscribeToRemoveUserFromGroup. with listenForNewGroupJoined,  listenForgroupToWasRemoved.
+      newgroupControllerGroup = _chatService.listenForNewGroupJoined().listen(
+        (group) {
+          if (group.id.isNotEmpty) {
+            //Add the group to the list of groups.
+            // Provider.of<ChatProvider>(context, listen: false)
+            //     .addUserGroup(group);
+          }
+        },
+      );
+
+      removedUserFromUpdateGroup =
+          _chatService.listenForgroupToWasRemoved().listen(
+        (group) {
+          if (group.id.isNotEmpty) {
+            //Remove the group from the list of groups.
+            // Provider.of<ChatProvider>(context, listen: false)
+            //     .removeUserGroup(group);
+          }
+        },
+      );
+    });
+  }
+
   Future<void> _initializeChat() async {
     try {
       setState(() => _isInitializing = true);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      if (widget.isAdmin) {
+        //Upgrade fetchUsers to get all users
+        final adminProvider =
+            Provider.of<AdminProvider>(context, listen: false);
+        if (adminProvider.users.isEmpty) {
+          await adminProvider.fetchAllUsers();
+          searchResults = adminProvider.users;
+        }
+      }
 
       await chatProvider.initialize();
       if (authProvider.currentUser != null && chatProvider.userGroups.isEmpty) {
@@ -56,9 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  //Steam to updates to current user if added to new group need to give him notification, and also to update the group list.
   @override
   Widget build(BuildContext context) {
-    return WillPopScope.new(
+    return WillPopScope(
       onWillPop: () async {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -174,8 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            List<UserModel> searchResults = [];
-
             if (searchQuery.isNotEmpty) {
               searchResults = Provider.of<AdminProvider>(context, listen: false)
                   .users
@@ -268,11 +316,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         Provider.of<ChatProvider>(context, listen: false);
 
                     if (groupNameController.text.isNotEmpty) {
-                      await chatProvider.createGroup(
+                      var res = await chatProvider.createGroup(
                         name: groupNameController.text,
                         adminId: authProvider.currentUser!.id,
                         memberIds: selectedMemberIds,
                       );
+                      // if 'success' => false . need to logout .
+                      if (res['success'] == false) {
+                        await Provider.of<AuthProvider>(context, listen: false)
+                            .logout();
+
+                        await Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
+                        );
+                        return;
+                      }
                       Navigator.of(context).pop();
                     }
                   },

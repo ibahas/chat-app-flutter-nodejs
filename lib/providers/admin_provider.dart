@@ -13,6 +13,10 @@ class AdminProvider with ChangeNotifier {
   List<UserModel> get users => _users;
   List<GroupModel> get groups => _groups;
 
+  AdminProvider() {
+    fetchAllUsers();
+  }
+
   Future<void> fetchAllUsers() async {
     try {
       _users = await _adminService.getAllUsers();

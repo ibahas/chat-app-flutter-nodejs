@@ -20,6 +20,7 @@ class AdminService {
       if (response['success'] == true && response['data'] != null) {
         return (response['data'] as List)
             .map((userData) => UserModel.fromJson(userData))
+            .where((user) => user.role != UserRole.admin)
             .toList();
       } else {
         throw Exception(response['message'] ?? 'Failed to get users');

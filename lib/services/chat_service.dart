@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:chat_app/models/user_model.dart';
+import 'package:flutter/material.dart';
+
 import '../models/group_model.dart';
 import '../models/message_model.dart';
 import '../services/websocket_service.dart';
@@ -77,11 +80,51 @@ class ChatService {
     });
 
     if (!response['success']) {
-      throw Exception(response['message'] ?? 'Failed to send message');
+      // throw Exception(response['message'] ?? 'Failed to send message');
+      SnackBar(content: response['message'] ?? 'Failed to send message');
     }
   }
 
   void disconnect() {
     _socketService.disconnect();
+  }
+
+  //getGroupUsers
+  Future<List<List<UserModel>>> getGroupUsers(String groupId) async {
+    final response =
+        await _socketService.emitWithAck('getGroupUsers', {'groupId': groupId});
+
+    if (response['success']) {
+      //Set user with user model.
+      return (response['data'] as List)
+          .map((user) =>
+              (user as List).map((u) => UserModel.fromJson(u)).toList())
+          .toList();
+    } else {
+      throw Exception(response['message'] ?? 'Failed to fetch group users');
+    }
+  }
+
+  //Listen for  'newGroupJoined' event
+  Stream<GroupModel> listenForNewGroupJoined() {
+    final controller = StreamController<GroupModel>();
+    _socketService.listen('newGroupJoined', (data) {
+      if (data != null) {
+        controller.add(GroupModel.fromJson(data));
+      }
+    });
+
+    return controller.stream;
+  }
+
+  Stream<GroupModel> listenForgroupToWasRemoved() {
+    final controller = StreamController<GroupModel>();
+    _socketService.listen('removeUserFrom', (data) {
+      if (data != null) {
+        controller.add(GroupModel.fromJson(data));
+      }
+    });
+
+    return controller.stream;
   }
 }
