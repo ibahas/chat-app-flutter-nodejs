@@ -127,4 +127,23 @@ class ChatService {
 
     return controller.stream;
   }
+
+  //getAllUsers
+  Future<List<UserModel>> getAllUsers() async {
+    try {
+      final response = await _socketService.emitWithAck('getAllUsers', {});
+
+      if (response['success'] == true && response['data'] != null) {
+        return (response['data'] as List)
+            .map((userData) => UserModel.fromJson(userData))
+            .where((user) => user.role != UserRole.admin)
+            .toList();
+      } else {
+        throw Exception(response['message'] ?? 'Failed to get users');
+      }
+    } catch (e) {
+      // print('Error getting all users: $e');
+      throw Exception('Failed to retrieve users: $e');
+    }
+  }
 }

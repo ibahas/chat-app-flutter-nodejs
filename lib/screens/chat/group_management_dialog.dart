@@ -1,11 +1,10 @@
 import 'package:chat_app/models/user_model.dart';
-import 'package:chat_app/providers/admin_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/group_model.dart';
 import '../../providers/chat_provider.dart';
-import '../../providers/auth_provider.dart';  //IMPORT AUTH PROVIDER.
+import '../../providers/auth_provider.dart'; //IMPORT AUTH PROVIDER.
 
 class GroupManagementDialog extends StatefulWidget {
   final GroupModel groupModel;
@@ -13,17 +12,18 @@ class GroupManagementDialog extends StatefulWidget {
   final String adminId;
   final List<String> memberIds;
   final List<UserModel> allUsers;
-  final Function(GroupModel newGroup) onGroupUpdated;
+  final Function(GroupModel newGroup, List<String> newMemberIds)
+      onGroupUpdated; // Modified callback
 
   const GroupManagementDialog({
-    Key? key,
+    super.key,
     required this.groupModel,
     required this.groupId,
     required this.adminId,
     required this.memberIds,
     required this.allUsers,
     required this.onGroupUpdated,
-  }) : super(key: key);
+  });
 
   @override
   State<GroupManagementDialog> createState() => _GroupManagementDialogState();
@@ -73,8 +73,10 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
                     await _updateGroupName(widget.groupId, newGroupName);
 
                 if (isSuccess) {
-                  final newGroup = widget.groupModel.copyWith(name: newGroupName);
-                  widget.onGroupUpdated(newGroup);
+                  final newGroup =
+                      widget.groupModel.copyWith(name: newGroupName);
+                  widget.onGroupUpdated(
+                      newGroup, groupMemberIds); // Pass memberIds too
                   setState(() {
                     groupName = newGroupName; // Update internal state of Dialog
                   });
@@ -96,7 +98,8 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     bool isSuccess = false;
     try {
-      isSuccess = await chatProvider.updateGroupName(widget.groupId, { 'name': newGroupName }); //Correct method name here
+      isSuccess = await chatProvider.updateGroupName(
+          widget.groupId, {'name': newGroupName}); //Correct method name here
     } catch (error) {
       // print('error when update group: $error');
     }
@@ -105,13 +108,17 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
 
   // This function to remove an user from the list
   void _showRemoveConfirmationDialog(BuildContext context, UserModel user) {
-      //FINAL VARIBABLE THAT CHECK WHO IS ADMIN IF FALSE IS IMPOSSIBLE DO ACTION!//
-    final bool isAdmin = widget.adminId == context.read<AuthProvider>().currentUser?.id ;//GET CORRECT CALL THE ADMIN
-      //END
+    //FINAL VARIBABLE THAT CHECK WHO IS ADMIN IF FALSE IS IMPOSSIBLE DO ACTION!//
+    final bool isAdmin = widget.adminId ==
+        context
+            .read<AuthProvider>()
+            .currentUser
+            ?.id; //GET CORRECT CALL THE ADMIN
+    //END
 
     if (!isAdmin) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Only the admin can remove users!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Only the admin can remove users!")));
       return;
     }
 
@@ -130,22 +137,24 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
             ElevatedButton(
               onPressed: () async {
                 //  call here webSocket remove User
-                  final chatProvider =
-                  Provider.of<ChatProvider>(context, listen: false);
+                final chatProvider =
+                    Provider.of<ChatProvider>(context, listen: false);
 
-                  // Call here webSocket to remove User
-                  bool isRemoved = await chatProvider.removeUserFromGroup(widget.groupId, user.id); // Use await and get bool
+                // Call here webSocket to remove User
+                bool isRemoved = await chatProvider.removeUserFromGroup(
+                    widget.groupId, user.id); // Use await and get bool
 
-                if (isRemoved == true) { // Check if isRemoved is true
+                if (isRemoved == true) {
+                  // Check if isRemoved is true
                   setState(() {
                     groupMemberIds.remove(user.id);
                   });
                 } else {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                       content:
-                       Text("User not was removed from this group ")));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("User not was removed from this group ")));
                 }
                 Navigator.of(context).pop(true);
+                widget.onGroupUpdated(widget.groupModel, groupMemberIds);
               },
               child: const Text('Remove'),
             ),
@@ -160,19 +169,19 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
   }
 
   // Method to add Users
-   Future<bool> _updateUsersGroup(String userId, String groupId) async {
-        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-      bool isSuccess = false;
-      try {
-        //Call Websocket here to add User
-       isSuccess = await chatProvider.addUserToGroup(groupId,  userId); //Correct method name here
-      } catch (error) {
-        // print('error when add users group: $error');
-        // if error occurs in request show a scaffoldM
-      }
-      return isSuccess;
+  Future<bool> _updateUsersGroup(String userId, String groupId) async {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    bool isSuccess = false;
+    try {
+      //Call Websocket here to add User
+      isSuccess = await chatProvider.addUserToGroup(
+          groupId, userId); //Correct method name here
+    } catch (error) {
+      // print('error when add users group: $error');
+      // if error occurs in request show a scaffoldM
     }
-
+    return isSuccess;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +195,7 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Users in group", style: TextStyle(fontSize: 20)),
+            const Text("Users in group", style: TextStyle(fontSize: 20)),
             ...widget.allUsers.map((user) {
               return Container(
                 child: groupMemberIds.contains(user.id)
@@ -195,8 +204,9 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
                         child: ListTile(
                             title: Text(user.name),
                             trailing: widget.adminId ==
-                                   context.read<AuthProvider>().currentUser!.id
-                                ? IconButton( //If admin user
+                                    context.read<AuthProvider>().currentUser!.id
+                                ? IconButton(
+                                    //If admin user
                                     icon: const Icon(Icons.delete),
                                     onPressed: () {
                                       _showRemoveConfirmationDialog(
@@ -204,11 +214,11 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
                                     })
                                 : null),
                       )
-                    : SizedBox.shrink(),
+                    : const SizedBox.shrink(),
               );
             }).toList(),
             const Divider(),
-            Text("Add a new user", style: TextStyle(fontSize: 20)),
+            const Text("Add a new user", style: TextStyle(fontSize: 20)),
             ...availableUsers.map((user) {
               return GestureDetector(
                 child: Container(
@@ -217,18 +227,20 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
                     title: Text(user.name),
                     trailing: const Icon(Icons.add),
                     onTap: () async {
+                      bool isAdded =
+                          await _updateUsersGroup(user.id, widget.groupId);
+                      //Show new group name after editing or do some thing
 
-                     bool isAdded =  await _updateUsersGroup(user.id, widget.groupId);
-                        //Show new group name after editing or do some thing
+                      if (isAdded == true) {
+                        setState(() {
+                          //After check what return of result add to selected Group id.
+                          groupMemberIds.add(user.id);
+                        });
+                        widget.onGroupUpdated(
+                            widget.groupModel, groupMemberIds);
+                      }
 
-                       if(isAdded == true){
-                           setState(() {
-                              //After check what return of result add to selected Group id.
-                            groupMemberIds.add(user.id);
-                          });
-                        }
-
-                  //After the procced show a successfull scafold message
+                      //After the procced show a successfull scafold message
                     },
                   ),
                 ),
@@ -238,7 +250,7 @@ class _GroupManagementDialogState extends State<GroupManagementDialog> {
                 onPressed: () {
                   _showEditGroupNameDialog(context);
                 },
-                child: Text("Change name of group"))
+                child: const Text("Change name of group"))
           ],
         ),
       ),

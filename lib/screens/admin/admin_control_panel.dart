@@ -111,7 +111,9 @@ class _AdminControlPanelState extends State<AdminControlPanel> {
             Consumer<AdminProvider>(
               builder: (context, adminProvider, child) {
                 if (adminProvider.groups.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: Text('No groups found. Create a new group!'),
+                  );
                 }
 
                 return ListView.builder(

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:chat_app/providers/admin_provider.dart';
 import 'package:chat_app/providers/chat_provider.dart';
-import 'package:chat_app/providers/voice_provider.dart';
 import 'package:chat_app/screens/chat/group_management_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -70,11 +69,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   // Load all users (for displaying names)
   Future<void> _loadAllUsers() async {
     if (_allUsersLoaded) return; // Prevent repeated calls
-    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     try {
-      await adminProvider.fetchAllUsers();
+      await chatProvider.fetchAllUsers();
       setState(() {
-        _allUsers = adminProvider.users;
+        _allUsers = chatProvider.users;
         _allUsersLoaded = true;
       });
     } catch (e) {
@@ -120,11 +119,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       type: MessageType.text,
     );
 
-    // Optimistically add the message
-    // setState(() {
-    //   _messages.insert(0, message);
-    // });
-
     try {
       await _chatService.sendGroupMessage(
           groupId: widget.group.id, message: message);
@@ -137,8 +131,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   // Get sender name
   String _getUserName(String senderId) {
+    print(_allUsers);
+    print('getUserName: $senderId');
+
     try {
-      return _allUsers.firstWhere((user) => user.id == senderId).name;
+      return _allUsers.firstWhere((user) => user.id == senderId).name ??
+          'Unknown User';
     } catch (e) {
       return 'Unknown User';
     }
@@ -219,9 +217,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             memberIds: widget.group.memberIds,
             allUsers: _allUsers,
             groupModel: groupModel,
-            onGroupUpdated: (GroupModel newGroup) {
+            onGroupUpdated: (GroupModel newGroup, List<String> newMemberIds) {
+              // Handle newMemberIds
               setState(() {
                 groupModel = newGroup;
+                // UPDATE MEMBERIDS HERE TO NEW MEMBER IDS!
+                widget.group.memberIds.clear();
+                widget.group.memberIds.addAll(newMemberIds);
               });
             },
           );

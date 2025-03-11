@@ -352,6 +352,29 @@ io.on('connection', (socket) => {
     }
   });
 
+  //getAllUsers
+  socket.on('getAllUsers', async (data, callback) => {
+    console.log(`getAllUsers`);
+
+    //If role is user  return only users names.
+    try {
+      const users = await db.all('SELECT id, name FROM users');
+      callback({
+        success: true,
+        data: users.map(user => ({
+          id: user.id,
+          name: user.name
+        }))
+      });
+    } catch (error) {
+      console.log('Get all users error:', error);
+      callback({ success: false, message: 'Failed to get users' });
+    }
+
+    callback({ success: false, message: 'Failed to get users' });
+  });
+
+
   // Logout
   socket.on('logout', (_, callback) => {
     console.log(`logout`);
@@ -483,7 +506,7 @@ io.on('connection', (socket) => {
         result.push({
           id: group.id,
           name: group.name,
-          adminId: group.admin_id,
+          // adminId: group.admin_id,
           members: members.map(m => m.user_id)
         });
       }
@@ -582,7 +605,7 @@ io.on('connection', (socket) => {
         result.push({
           id: group.id,
           name: group.name,
-          adminId: group.admin_id,
+          // adminId: group.admin_id,
           members: members.map(m => m.user_id)
         });
       }
@@ -619,7 +642,7 @@ io.on('connection', (socket) => {
       const messageData = {
         // id: Date.now().toString(), // Generate a temporary ID (not saved)
         groupId: groupId,
-        // senderId: senderId,
+        senderId: senderId,
         content: content,
         timestamp: new Date().toISOString(),
         type: type
@@ -680,7 +703,7 @@ io.on('connection', (socket) => {
       let result = {
         id: groupD.id,
         name: groupD.name,
-        adminId: groupD.admin_id,
+        // adminId: groupD.admin_id,
         members: members.map(m => m.user_id)
       };
 
@@ -817,7 +840,7 @@ io.on('connection', (socket) => {
       let result = {
         id: groupD.id,
         name: groupD.name,
-        adminId: groupD.admin_id,
+        // adminId: groupD.admin_id,
         members: members.map(m => m.user_id)
       };
 
@@ -903,7 +926,7 @@ io.on('connection', (socket) => {
     }
 
     try {
-      const { name, adminId, members } = data;
+      const { name, members } = data;
       const groupId = Date.now().toString();
       const createdAt = new Date().toISOString();
 
@@ -913,6 +936,7 @@ io.on('connection', (socket) => {
         [groupId, name, adminId, createdAt]
       );
 
+      adminId = 2;
       // Add admin as a member
       if (!members.includes(adminId)) {
         members.push(adminId);
@@ -938,7 +962,7 @@ io.on('connection', (socket) => {
         let result = {
           id: groupD.id,
           name: groupD.name,
-          adminId: groupD.admin_id,
+          // adminId: groupD.admin_id,
           members: members.map(m => m.user_id)
         };
 
@@ -966,7 +990,6 @@ io.on('connection', (socket) => {
     if (!socket.userId) return;
 
     const { groupId } = data;
-    console.log(`joinGroup - User ${socket.userId} joining group: ${groupId}`);
     socket.join(`group:${groupId}`); // Join room
     console.log(`joinGroup - User ${socket.userId} joined room group:${groupId}`);
   });

@@ -1,0 +1,7 @@
+{
+  "port": 80,
+  "jwtSecret": "${process.env.JWT_SECRET}",
+  "db": {
+    "filename": "./chat_app.db"
+  }
+}

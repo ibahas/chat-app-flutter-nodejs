@@ -1,0 +1,9 @@
+{
+    "appName": "My Chat App",
+    "port": 3000,
+    "jwtSecret": "auth_token",
+    "db": {
+      "filename": "chat_app.db"
+    },
+    "uploadDir": "uploads/"
+  }

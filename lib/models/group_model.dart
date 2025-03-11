@@ -8,7 +8,7 @@ class GroupModel {
     required this.id,
     required this.name,
     required this.memberIds,
-    required this.adminId,
+    this.adminId = '2',
   });
 
   factory GroupModel.fromJson(Map<String, dynamic> json) {

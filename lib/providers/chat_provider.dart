@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'package:chat_app/models/user_model.dart';
+import 'package:chat_app/services/chat_service.dart';
 import 'package:flutter/material.dart';
 import '../models/group_model.dart';
 import '../models/message_model.dart';
 import '../services/websocket_service.dart';
 
 class ChatProvider with ChangeNotifier {
+  final ChatService _chatService = ChatService();
+
   final WebSocketService _socketService = WebSocketService();
 
   final StreamController<String> _navigationController =
@@ -16,6 +20,7 @@ class ChatProvider with ChangeNotifier {
       StreamController<GroupModel>.broadcast();
 
   List<GroupModel> _userGroups = [];
+  List<UserModel> users = [];
   final List<MessageModel> _currentGroupMessages = [];
   bool _isLoading = false;
   String? _error;
@@ -62,20 +67,11 @@ class ChatProvider with ChangeNotifier {
 
     _socketService.listen('removedFromGroup',
         _handleRemovedFromGroup); // Listen for the new event
+
+    //getAllUsers.
+    fetchAllUsers();
   }
 
-  // Add listen from stream
-  // void listenUserAdded(String userId) {
-  //   _socketService.listen('NewUseraddGroup:$userId', (data) async {
-  //     if (data != null) {
-  //       //Add the data to userlist with new Group name and Id for call
-  //       print("dataAdd $data and user_id");
-  //       _newGroupController.add(GroupModel.fromJson(data));
-  //       listenForNewGroup(userId); // Refresh if needed (check context)
-  //       // notifyListeners();
-  //     }
-  //   });
-  // }
   void _handleRemovedFromGroup(dynamic data) {
     if (data != null &&
         data is Map<String, dynamic> &&
@@ -274,7 +270,7 @@ class ChatProvider with ChangeNotifier {
   }) async {
     final response = await _socketService.emitWithAck('createGroup', {
       'name': name,
-      'adminId': adminId,
+      // 'adminId': adminId,
       'members': memberIds,
     });
 
@@ -404,8 +400,13 @@ class ChatProvider with ChangeNotifier {
       if (response['success'] == true) {
         return true; // Return true for success
       } else {
-        throw Exception(
-            response['message'] ?? 'Failed to remove user from group');
+        // throw Exception(
+        //     response['message'] ?? 'Failed to remove user from group');
+        SnackBar(
+            content: Text(
+          response['message'] ?? 'Failed to remove user from group',
+        ));
+        return false;
       }
     } catch (e) {
       // print('Error removing user from group: $e');
@@ -431,11 +432,26 @@ class ChatProvider with ChangeNotifier {
         notifyListeners();
         return true; // Return true for success
       } else {
-        throw Exception(response['message'] ?? 'Failed to add user to group');
+        // throw Exception(response['message'] ?? 'Failed to add user to group');
+        SnackBar(
+            content: Text(
+          response['message'] ?? 'Failed to add user to group',
+        ));
+        return false;
       }
     } catch (e) {
       // print('Error adding user to group: $e');
       return false; // Return false for failure
+    }
+  }
+
+  //fetchAllUsers
+  Future<void> fetchAllUsers() async {
+    try {
+      users = await _chatService.getAllUsers();
+      notifyListeners();
+    } catch (e) {
+      // // print('Error fetching users: $e');
     }
   }
 }
